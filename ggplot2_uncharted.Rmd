@@ -1,0 +1,159 @@
+---
+title: "ggPlot Uncharted"
+author: "Bernd Berauer"
+date: "2025-09-05"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Table of Contents
+
+0. General preparations
+1. Foundations of ggplot2
+
+0. General preparations
+
+
+
+
+1. Foundations of ggplot2
+
+First, create a new directory to work in for the first chapter.
+
+```{r}
+
+dir.create("1_foundations_of_ggplot2")
+
+```
+
+Load necessary libraries for visualization.
+```{r}
+library(tidyverse)
+library(paletteer)
+library(ggthemes)
+library(ggsci)
+library(scales)
+library(camcorder)
+
+```
+
+
+Load the *Simpson* data set and inspect it.
+
+```{r}
+
+url <- "https://www.ggplot2-uncharted.com/data/simpsons_episodes.csv"
+data <- read.csv(url)
+
+str(data)
+head(data)
+
+```
+
+First graph: Plot the average IMdB rating per Season.
+
+```{r}
+
+ggplot(data %>% 
+         summarise(.,
+                   mean_imdb = mean(imdb_rating, na.rm = TRUE),
+                   .by = season),
+       aes(x = season, y = mean_imdb)) +
+  geom_hline(yintercept = mean(data$imdb_rating, na.rm = TRUE), linetype = "dashed", colour = "red") +
+  geom_label(aes(y = mean(data$imdb_rating, na.rm = TRUE),
+                 x = 1,
+                 label = paste(round(mean(data$imdb_rating, na.rm = TRUE), digits = 1), "Overall average", sep = " ")),
+             colour = "red",
+             hjust = 0.15,
+             nudge_y = 0.1,
+             label.size = 0) +
+  geom_line(colour = "#EABF04", size = 1.5) +
+  geom_point(fill = "#EABF04", size = 4.5, stroke = 1.5, shape = 21, colour = "white") +
+  scale_y_continuous(name = "IMdB score [average]",breaks = c(7, 8)) +
+  scale_x_continuous(name = "Season", breaks = seq(from = 0, to = 25, by = 5)) +
+  coord_cartesian(ylim = c(6.5 ,8.5)) +
+  labs(title = "Average IMdB rating of The Simpsons episodes per season",
+       subtitle = "Since Season 10 The Simpsons underperform",
+       caption = "Source: ggplot2-uncharted.com | Data: Kaggle") +
+  theme_bw() +
+  theme(panel.grid = element_blank())
+
+ggsave("./1_foundations_of_ggplot2/1_1_avgIMdB_Season.png", dpi = 600, width = 6, height = 4)
+
+```
+
+Second graph: Plot the Ratio of viewer numbers and IMdB score to identify points where people watch the episode even if its bad
+
+```{r}
+
+ggplot(data = data) +
+  geom_hline(yintercept = mean(data$us_viewers_in_millions, na.rm = TRUE), linetype = "dashed", colour = "black") +
+  geom_label(data = data %>% filter(., imdb_rating == min(imdb_rating, na.rm = T)),
+             aes(x = imdb_rating, y = us_viewers_in_millions, label = title),
+             nudge_y = -1.5,
+             label.size = 0) +
+  geom_point(aes(x = imdb_rating,
+                 y = us_viewers_in_millions,
+                 colour = if_else(imdb_rating < mean(data$imdb_rating, na.rm = TRUE),"Below Average" , "Above Average")),
+             size = 3,
+             alpha = 0.7) +
+  scale_color_manual(name = "IMdB rating",
+                     values = c("Below Average" = "#F05C3BFF", "Above Average" = "#FED439FF")) +
+  #scale_color_continuous(low = "#F05C3BFF", high = "#FED439FF") +
+  scale_x_continuous(name = "IMdB score", breaks = seq(from = 5, to = 10, by = 1)) +
+  scale_y_continuous(name = "Viewers [in millions]", breaks = seq(from = 0, to = 30, by = 10)) +
+  coord_cartesian(xlim = c(4, 10)) +
+  labs(title = "IMdB rating vs. Viewers of The Simpsons episodes",
+       subtitle = "Some episodes are watched a lot although they have a low IMdB rating",
+       caption = "Source: ggplot2-uncharted.com | Data: Kaggle") +
+  theme_bw() +
+  theme(legend.position = "bottom",
+        panel.grid.minor = element_blank())
+
+ggsave("./1_foundations_of_ggplot2/1_2_IMdB_Viewers.png", dpi = 600, width = 6, height = 4)
+
+```
+
+Third graph
+
+```{r}
+
+ggplot(data = data) +
+  geom_hline(yintercept = mean(data$us_viewers_in_millions, na.rm = TRUE), linetype = "dashed", colour = "black") +
+  geom_label(data = data %>% filter(., imdb_rating == min(imdb_rating, na.rm = T)),
+             aes(x = imdb_rating, y = us_viewers_in_millions, label = title),
+             nudge_y = -1.5,
+             label.size = 0) +
+  geom_point(aes(x = imdb_rating,
+                 y = us_viewers_in_millions,
+                 colour = case_when(imdb_rating < mean(data$imdb_rating, na.rm = TRUE) & us_viewers_in_millions > mean(data$us_viewers_in_millions, na.rm = TRUE) ~ "Below Average & High Viewers",
+                                    imdb_rating < mean(data$imdb_rating, na.rm = TRUE) & us_viewers_in_millions <= mean(data$us_viewers_in_millions, na.rm = TRUE) ~ "Below Average & Low Viewers",
+                                    imdb_rating >= mean(data$imdb_rating, na.rm = TRUE) & us_viewers_in_millions > mean(data$us_viewers_in_millions, na.rm = TRUE) ~ "Above Average & High Viewers",
+                                    imdb_rating >= mean(data$imdb_rating, na.rm = TRUE) & us_viewers_in_millions <= mean(data$us_viewers_in_millions, na.rm = TRUE) ~ "Above Average & Low Viewers")),
+             size = 3,
+             alpha = 0.7) +
+  scale_color_manual(name = "IMdB rating",
+                     values = c("Below Average & High Viewers" = "#709AE1FF",
+                                "Below Average & Low Viewers" = "#71D0F5FF",
+                     "Above Average & High Viewers" = "#FED439FF",
+                     "Above Average & Low Viewers" = "#F05C3BFF")
+                     )+
+  #scale_color_continuous(low = "#F05C3BFF", high = "#FED439FF") +
+  scale_x_continuous(name = "IMdB score", breaks = seq(from = 5, to = 10, by = 1)) +
+  scale_y_continuous(name = "Viewers [in millions]", breaks = seq(from = 0, to = 30, by = 10)) +
+  coord_cartesian(xlim = c(4, 10)) +
+  labs(title = "IMdB rating vs. Viewers of The Simpsons episodes",
+       subtitle = "Some episodes are watched a lot although they have a low IMdB rating",
+       caption = "Source: ggplot2-uncharted.com | Data: Kaggle") +
+  guides(color = guide_legend(nrow=2,byrow=TRUE)) +
+  theme_bw() +
+  theme(legend.position = "bottom",
+        panel.grid.minor = element_blank())
+
+ggsave("./1_foundations_of_ggplot2/1_21_IMdB_Viewers.png", dpi = 600, width = 6, height = 4)
+
+```
+
